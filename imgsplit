@@ -13,8 +13,8 @@ parser = argparse.ArgumentParser(description="Split a .png image vertically or h
 parser.add_argument("fname", help="img file name")
 parser.add_argument("prefix", help="prefix of output pngs")
 parser.add_argument('--orientation',  choices=["vertical", "horizontal"], help="split orientation")
-parser.add_argument('--height',  help="output img height. default 128")
-parser.add_argument('--width', help="output img width. default is full width")
+parser.add_argument('--height',  help="output img height. default is 128 if orientation is vertical, or full image height if horizontal. ")
+parser.add_argument('--width', help="output img width. default is 128 if orientation is horizontal, or full image hight if vertical.")
 parser.add_argument('--start', choices=["top", "bottom", "center", "left", "right"], help="start from top, BOTTOM or center (for vertical orientation) or LEFT, right or center (for horizontal orientation)")
 parser.add_argument('--outdir', help="output directory, current working directory by default")
 
