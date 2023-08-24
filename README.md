@@ -26,7 +26,7 @@ optional arguments:
 
 Example use: imgsplit --outdir out/ --orientation horizontal --start center --widith 500 alien.png out_
 
-<img src="https://github.com/dumpmyshit/imgsplit/assets/143140288/3c27b0f6-b6dc-4f52-bd61-379824c7827c" width="200" />
+<img src="https://github.com/dumpmyshit/imgsplit/assets/143140288/3c27b0f6-b6dc-4f52-bd61-379824c7827c" width="200" height="auto" />
 
 <br>
 
