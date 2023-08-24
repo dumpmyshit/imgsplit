@@ -37,3 +37,4 @@ Example use: imgsplit --outdir out/ --orientation horizontal --start center --wi
 <img src="https://github.com/dumpmyshit/imgsplit/assets/143140288/fbf69b0e-f658-482e-8313-c9258ca5ff85" width="200" />
 <img src="https://github.com/dumpmyshit/imgsplit/assets/143140288/cbabb6a3-7bc4-4727-98fc-75e48215ff19" width="200" />
 
+Notice how transparency has been added to the last two parts.
