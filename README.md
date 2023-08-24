@@ -16,9 +16,10 @@ optional arguments:
   -h, --help            show this help message and exit
   --orientation {vertical,horizontal}
                         split orientation
-  --height HEIGHT       output img height. default 128
-  --width WIDTH         output img width. default is full width
+  --height HEIGHT       output img height. default is 128 if orientation is vertical, or full image height if horizontal.
+  --width WIDTH         output img width. default is 128 if orientation is horizontal, or full image hight if vertical.
   --start {top,bottom,center,left,right}
                         start from top, BOTTOM or center (for vertical orientation) or LEFT, right or center (for horizontal orientation)
   --outdir OUTDIR       output directory, current working directory by default
+
 ```
