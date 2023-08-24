@@ -23,3 +23,7 @@ optional arguments:
   --outdir OUTDIR       output directory, current working directory by default
 
 ```
+![a](https://github.com/dumpmyshit/imgsplit/assets/143140288/3c27b0f6-b6dc-4f52-bd61-379824c7827c)
+
+
+
