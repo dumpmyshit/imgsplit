@@ -1,0 +1,379 @@
+#!/usr/bin/python3.9
+
+import numpy as np
+
+import cv2
+
+import sys
+import os
+import math
+
+import argparse
+parser = argparse.ArgumentParser(description="Split a .png image vertically or horizontally, fitting last pieces.")
+parser.add_argument("fname", help="img file name")
+parser.add_argument("prefix", help="prefix of output pngs")
+parser.add_argument('--orientation',  choices=["vertical", "horizontal"], help="split orientation")
+parser.add_argument('--height',  help="output img height. default 128")
+parser.add_argument('--width', help="output img width. default is full width")
+parser.add_argument('--start', choices=["top", "bottom", "center", "left", "right"], help="start from top, BOTTOM or center (for vertical orientation) or LEFT, right or center (for horizontal orientation)")
+parser.add_argument('--outdir', help="output directory, current working directory by default")
+
+args = parser.parse_args()
+
+
+
+def showAndSave(img, path):
+    print("presenting " + path)
+    cv2.imshow("asd", img)
+    cv2.waitKey()
+    cv2.imwrite(path, img)
+
+
+
+def crop(img, ty, tx, by, bx):
+    print("cropping from " + str(tx) + "x" + str(ty) + " to " + str(bx) + "x" + str(by))
+    return img[ty:by,tx:bx]
+
+
+def imgcf(imgw, imgh, tarw, tarh, order, orientation):
+    temp=0
+    if(orientation=="vertical"):
+        temp=math.floor(imgh/tarh)
+    else:
+        temp=math.floor(imgw/tarw)
+    if(order=="center"):
+        return int(temp-1)
+    else:
+        return int(temp)
+
+def imgct(imgw, imgh, tarw, tarh, order, orientation):
+    if(orientation=="vertical"):
+       return int(math.ceil(imgh/tarh))
+    else:
+       return int(math.ceil(imgw/tarw))
+
+
+
+def diff(imgw, imgh, tarw, tarh, order, orientation):
+    fulls=imgcf(imgw, imgh, tarw, tarh, order, orientation)
+    if(orientation=="vertical"):
+        if(order=="bottom"):
+            return tarh - (imgh % tarh)
+        elif(order=="top"):
+            return tarh - (imgh-(fulls*tarh))
+        else:
+           return int((imgh%tarh)/2)
+    elif(orientation=="horizontal"):
+        if(order=="left"):
+            return tarw - (imgw-(fulls*tarw))
+        elif(order=="right"):
+            return tarw - (imgw%tarw)
+        else:
+            return (imgw%tarw)/2
+
+
+
+def gent(imgw, imgh, tarw, tarh, order, orientation):
+    _diff=diff(imgw, imgh, tarw, tarh, order, orientation)
+    if(orientation=="vertical"):
+        print("generating " + str(tarw) + "x" + str(_diff) + " transparent image")
+        return np.zeros((int(_diff), tarw, 4), dtype=np.uint8)
+    else:
+        print("generating " + str(_diff) + "x" + str(tarh) + " transparent image")
+        return np.zeros((tarh, int(_diff), 4), dtype=np.uint8)
+
+
+def merge(order, orientation, transparent, crop, index):
+    print("merging")
+    if(orientation=="vertical"):
+        if(order=="bottom"):
+            return cv2.vconcat([transparent, crop])
+        elif(order=="top"):
+            return cv2.vconcat([crop, transparent])
+        else:
+            if(index==0):
+                return cv2.vconcat([transparent, crop])
+            else:
+                return cv2.vconcat([crop, transparent])
+    else:
+        if(order=="left"):
+            return cv2.hconcat([crop, transparent])
+        elif(order=="right"):
+            return cv2.hconcat([transparent, crop])
+        else:
+            if(index==0):
+                return cv2.hconcat([transparent, crop])
+            else:
+                return cv2.hconcat([crop, transparent])
+
+
+
+
+
+def typ(imgw, imgh, tarw, tarh, order, orientation, index):
+    fulls=imgcf(imgw, imgh, tarw, tarh, order, orientation)
+    ydiff=diff(imgw, imgh, tarw, tarh, order, orientation)
+    if(orientation=="vertical"):
+        if(order=="bottom"):
+            return int(0)
+        elif(order=="top"):
+            return int(fulls*tarh)
+        else:
+            if(index==0):
+                return int(0)
+            else:
+                return int(imgh-(tarh-ydiff))
+    elif(orientation=="horizontal"):
+        return int(0)
+
+def byp(imgw, imgh, tarw, tarh, order, orientation, index):
+    fulls=imgcf(imgw, imgh, tarw, tarh, order, orientation)
+    ydiff=diff(imgw, imgh, tarw, tarh, order, orientation)
+    if(orientation=="vertical"):
+        if(order=="bottom"):
+            return int(imgh%tarh)
+        elif(order=="top"):
+            return int(imgh)
+        else:
+            if(index==0):
+                return int(tarh-ydiff)
+            else:
+                return int(imgh)
+    elif(orientation=="horizontal"):
+        return int(tarh)
+
+
+def txp(imgw, imgh, tarw, tarh, order, orientation, index):
+    fulls=imgcf(imgw, imgh, tarw, tarh, order, orientation)
+    xdiff=diff(imgw, imgh, tarw, tarh, order, orientation)
+    if(orientation=="vertical"):
+        return int(0)
+    elif(orientation=="horizontal"):
+        if(order=="left"):
+            return int(fulls*tarw)
+        elif(order=="right"):
+            return int(0)
+        else:
+            if(index==0):
+                return int(0)
+            else:
+                return int(imgw-(tarw-xdiff))
+
+
+def bxp(imgw, imgh, tarw, tarh, order, orientation, index):
+    fulls=imgcf(imgw, imgh, tarw, tarh, order, orientation)
+    xdiff=diff(imgw, imgh, tarw, tarh, order, orientation)
+    if(orientation=="vertical"):
+        return int(tarw)
+    elif(orientation=="horizontal"):
+        if(order=="left"):
+            return int(width)
+        elif(order=="right"):
+            return int(width%tarw)
+        else:
+            if(index==0):
+                return int(tarw-xdiff)
+            else:
+                return int(width)
+
+
+
+
+
+
+def tyf(imgw, imgh, tarw, tarh, order, orientation, index):
+    Hd2 = imgh/2
+    THd2 = tarh/2
+    Wd2 = imgw/2
+    TWd2 = tarw/2
+    if(orientation=="vertical"):
+        if(order=="bottom"):
+            return int(imgh-((index+1)*tarh))
+        elif(order=="top"):
+            return int(index*tarh)
+        elif(order=="center"):
+            if(index == 0):
+                return int(Hd2-THd2)
+            elif(index%2 == 1):
+                return int(Hd2+(index*THd2))
+            elif(i%2 == 0):
+                return int(Hd2-((index+1)*THd2))
+    elif(orientation=="horizontal"):
+        return int(0)
+
+def byf(imgw, imgh, tarw, tarh, order, orientation, index):
+    Hd2 = imgh/2
+    THd2 = tarh/2
+    Wd2 = imgw/2
+    TWd2 = tarw/2
+    ty=tyf(imgw,imgh,tarw,tarh,order,orientation,index)
+    if(orientation=="vertical"):
+        if(order=="bottom"):
+            return int(ty+tarh)
+        elif(order=="top"):
+            #return int(ty+(index+1)*tarh)
+            return int(ty+tarh)
+        elif(order=="center"):
+            if(index == 0):
+                return int(ty+tarh)
+            elif(index%2 == 1):
+                return int(ty+tarh)
+            elif(i%2 == 0):
+                return int(ty+tarh)
+    elif(orientation=="horizontal"):
+        return int(tarh)
+
+
+def txf(imgw, imgh, tarw, tarh, order, orientation, index):
+    Wd2 = imgw/2
+    TWd2 = tarw/2
+    if(orientation=="vertical"):
+        return int(0)
+    elif(orientation=="horizontal"):
+        if(order=="left"):
+            return int(index*tarw)
+        elif(order=="right"):
+            return int(imgw-((index+1)*tarw))
+        elif(order=="center"):
+            if(index == 0):
+                return int(Wd2-TWd2)
+            elif(index%2 == 1):
+                return int(Wd2+(index*TWd2))
+            elif(i%2 == 0):
+                return int(Wd2-((index+1)*TWd2))
+
+def bxf(imgw, imgh, tarw, tarh, order, orientation, index):
+    Wd2 = imgw/2
+    TWd2 = tarw/2
+    tx=txf(imgw,imgh,tarw,tarh,order,orientation,index)
+    if(orientation=="vertical"):
+        return int(tarw)
+    elif(orientation=="horizontal"):
+        if(order=="left"):
+            return int(index*tarw+tarw)
+        elif(order=="right"):
+            return int(tx+tarw)
+        elif(order=="center"):
+            if(index == 0):
+                return int(tx+tarw)
+            elif(index%2 == 1):
+                return int(tx+tarw)
+            elif(i%2 == 0):
+                return int(tx+tarw)
+
+
+
+
+
+
+abspath=os.path.abspath(args.fname)
+
+if(not args.outdir):
+    args.outdir=os.getcwd()
+
+if(not args.start):
+    args.start="bottom"
+
+if(not args.orientation):
+    args.orientation="vertical"
+
+if(args.orientation == "vertical"):
+    assert(args.start != "left")
+    assert(args.start != "right")
+else:
+    assert(args.start != "top")
+    assert(args.start != "bottom")
+
+
+
+tarW = 128
+if(args.width):
+    tarW = int(args.width)
+tarH = 128
+if(args.height):
+    tarH = int(args.height)
+
+
+img = cv2.imread(abspath, cv2.IMREAD_UNCHANGED)
+if(img is not None):
+    height=img.shape[0]
+    width=img.shape[1]
+    if(args.orientation == "vertical"):
+        if(not args.width):
+            tarW = width
+    elif(args.orientation == "horizontal"):
+        if(not args.height):
+            tarH = height
+
+
+    fulls=imgcf(width, height, tarW, tarH, args.start, args.orientation)
+
+    total=imgct(width, height, tarW, tarH, args.start, args.orientation)
+    parts = fulls - total
+    partExists = fulls != total
+    print("fulls:" + str(fulls))
+    print("total:" + str(total))
+
+    for i in range(0,fulls):
+        ty, tx, by, bx = 0, 0, 0, 0
+
+        ty = tyf(width, height, tarW, tarH, args.start, args.orientation, i)
+        tx = txf(width, height, tarW, tarH, args.start, args.orientation, i)
+        by = byf(width, height, tarW, tarH, args.start, args.orientation, i)
+        bx = bxf(width, height, tarW, tarH, args.start, args.orientation, i)
+
+        iname = args.prefix + "_" + str(i) + ".png"
+        oimg=crop(img,ty,tx,by,bx)
+        fpath=args.outdir + "/" + iname
+        showAndSave(oimg, fpath)
+
+
+    if(partExists):
+        ydiff=diff(width, height, tarW, tarH, args.start, args.orientation)
+        if(args.start=="center"):
+            ty0 = typ(width, height, tarW, tarH, args.start, args.orientation, 0)
+            tx0 = txp(width, height, tarW, tarH, args.start, args.orientation, 0)
+            by0 = byp(width, height, tarW, tarH, args.start, args.orientation, 0)
+            bx0 = bxp(width, height, tarW, tarH, args.start, args.orientation, 0)
+
+            cropped=crop(img, ty0, tx0, by0, bx0)
+            transparent = gent(width, height, tarW, tarH, args.start, args.orientation)
+
+            out = merge(args.start, args.orientation, transparent, cropped, 0)
+            iname = args.prefix + "_" + str(fulls) + ".png"
+            fpath=args.outdir + "/" + iname
+            showAndSave(out, fpath)
+
+
+            ty1 = typ(width, height, tarW, tarH, args.start, args.orientation, 1)
+            tx1 = txp(width, height, tarW, tarH, args.start, args.orientation, 1)
+            by1 = byp(width, height, tarW, tarH, args.start, args.orientation, 1)
+            bx1 = bxp(width, height, tarW, tarH, args.start, args.orientation, 1)
+
+            cropped=crop(img, ty1, tx1, by1, bx1)
+            transparent = gent(width, height, tarW, tarH, args.start, args.orientation)
+
+            out = merge(args.start, args.orientation, transparent, cropped, 1)
+            iname = args.prefix + "_" + str(fulls+1) + ".png"
+            fpath=args.outdir + "/" + iname
+            showAndSave(out, fpath)
+
+
+        else:
+            ty = typ(width, height, tarW, tarH, args.start, args.orientation, 0)
+            tx = txp(width, height, tarW, tarH, args.start, args.orientation, 0)
+            by = byp(width, height, tarW, tarH, args.start, args.orientation, 0)
+            bx = bxp(width, height, tarW, tarH, args.start, args.orientation, 0)
+
+            cropped=crop(img, ty, tx, by, bx)
+            transparent = gent(width, height, tarW, tarH, args.start, args.orientation)
+
+            out = merge(args.start, args.orientation, transparent, cropped, 0)
+            iname = args.prefix + "_" + str(fulls) + ".png"
+            fpath=args.outdir + "/" + iname
+            showAndSave(out, fpath)
+
+
+else:
+    print("not valid image")
+    sys.exit(1)
