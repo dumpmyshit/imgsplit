@@ -15,7 +15,7 @@ parser.add_argument("prefix", help="prefix of output pngs")
 parser.add_argument('--orientation',  choices=["vertical", "horizontal"], help="split orientation")
 parser.add_argument('--height',  help="output img height. default is 128 if orientation is vertical, or full image height if horizontal. ")
 parser.add_argument('--width', help="output img width. default is 128 if orientation is horizontal, or full image hight if vertical.")
-parser.add_argument('--start', choices=["top", "bottom", "center", "left", "right"], help="start from top, BOTTOM or center (for vertical orientation) or LEFT, right or center (for horizontal orientation)")
+parser.add_argument('--start', choices=["top", "bottom", "center", "left", "right"], help="start from top, BOTTOM or center (for vertical orientation) or left, RIGHT or center (for horizontal orientation)")
 parser.add_argument('--outdir', help="output directory, current working directory by default")
 
 args = parser.parse_args()
@@ -271,11 +271,16 @@ abspath=os.path.abspath(args.fname)
 if(not args.outdir):
     args.outdir=os.getcwd()
 
-if(not args.start):
-    args.start="bottom"
 
 if(not args.orientation):
     args.orientation="vertical"
+
+if(not args.start):
+    if(args.orientation == "vertical"):
+       args.start="bottom"
+    else:
+       args.start="right"
+
 
 if(args.orientation == "vertical"):
     assert(args.start != "left")
@@ -301,9 +306,39 @@ if(img is not None):
     if(args.orientation == "vertical"):
         if(not args.width):
             tarW = width
+
+        if(tarW > width):
+            print("Preferred width overshoots image width, resizing.")
+            __diff = tarW - width
+            if(__diff%2 != 0):
+                print("Overshot is not divisable by two, adding one to it")
+            __diff = __diff + 1
+
+            transp = np.zeros((int(height), int(__diff/2), 4), dtype=np.uint8)
+            img = cv2.hconcat([transp,img])
+            img = cv2.hconcat([img,transp])
+            height = img.shape[0]
+            width = img.shape[1]
     elif(args.orientation == "horizontal"):
         if(not args.height):
             tarH = height
+
+        if(tarH > height):
+            print("Preferred height overshoots image height, resizing.")
+            __diff = tarH - height
+            if(__diff%2 != 0):
+                print("Overshot is not divisable by two, adding one to it")
+            __diff = __diff + 1
+
+
+            transp = np.zeros((int(__diff/2), width, 4), dtype=np.uint8)
+            img = cv2.vconcat([transp,img])
+            img = cv2.vconcat([img,transp])
+            height = img.shape[0]
+            width = img.shape[1]
+
+    
+
 
 
     fulls=imgcf(width, height, tarW, tarH, args.start, args.orientation)
