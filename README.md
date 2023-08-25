@@ -1,15 +1,13 @@
 # imgsplit
-Split png image vertically or horizontally into fixed size sub-images, adding transparency to residuals.
+Split png image vertically or horizontally or tiled, into fixed size sub-images, adding transparency to residuals.
 
 Currently requires a unix environment with python3.9, python-opencv2 and numpy installed.
 
 ```
-usage: imgsplit [-h] [--orientation {vertical,horizontal}] [--height HEIGHT] [--width WIDTH]
-                [--start {top,bottom,center,left,right}] [--outdir OUTDIR] [--addwidth ADDWIDTH]
-                [--addheight ADDHEIGHT]
+usage: imgsplit [-h] [--orientation {vertical,horizontal,tiled}] [--height HEIGHT] [--width WIDTH] [--start {top,bottom,center,left,right}] [--outdir OUTDIR] [--addwidth ADDWIDTH] [--addheight ADDHEIGHT]
                 fname prefix
 
-Split a .png image vertically or horizontally, fitting last pieces.
+Split a .png image vertically, horizontally, or in a tiled fashion, with extra features.
 
 positional arguments:
   fname                 img file name
@@ -17,20 +15,16 @@ positional arguments:
 
 optional arguments:
   -h, --help            show this help message and exit
-  --orientation {vertical,horizontal}
-                        split orientation
-  --height HEIGHT       output img height. default is 128 if orientation is vertical, or full image
-                        height if horizontal.
-  --width WIDTH         output img width. default is 128 if orientation is horizontal, or full image
-                        hight if vertical.
+  --orientation {vertical,horizontal,tiled}
+                        split orientation (default is tiled)
+  --height HEIGHT       output img height. default is 128 if orientation is vertical, or full image height if horizontal.
+  --width WIDTH         output img width. default is 128 if orientation is horizontal, or full image hight if vertical.
   --start {top,bottom,center,left,right}
-                        start from top, BOTTOM or center (for vertical orientation) or left, RIGHT or
-                        center (for horizontal orientation)
+                        start from top, BOTTOM or center (for vertical orientation) or left, RIGHT or center (for horizontal orientation). center is default
   --outdir OUTDIR       output directory, current working directory by default
   --addwidth ADDWIDTH   add width to input image
   --addheight ADDHEIGHT
                         add height to input image
-
 ```
 
 Example use: imgsplit --outdir out/ --orientation horizontal --start center --width 500 alien.png out_
