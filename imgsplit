@@ -9,18 +9,24 @@ import os
 import math
 
 import argparse
-parser = argparse.ArgumentParser(description="Split a .png image vertically or horizontally, fitting last pieces.")
+parser = argparse.ArgumentParser(description="Split a .png image vertically, horizontally, or in a tiled fashion, with extra features.")
 parser.add_argument("fname", help="img file name")
 parser.add_argument("prefix", help="prefix of output pngs")
-parser.add_argument('--orientation',  choices=["vertical", "horizontal"], help="split orientation")
+parser.add_argument('--orientation',  choices=["vertical", "horizontal", "tiled"], help="split orientation (default is tiled)")
 parser.add_argument('--height',  help="output img height. default is 128 if orientation is vertical, or full image height if horizontal. ")
 parser.add_argument('--width', help="output img width. default is 128 if orientation is horizontal, or full image hight if vertical.")
-parser.add_argument('--start', choices=["top", "bottom", "center", "left", "right"], help="start from top, BOTTOM or center (for vertical orientation) or left, RIGHT or center (for horizontal orientation)")
+parser.add_argument('--start', choices=["top", "bottom", "center", "left", "right"], help="start from top, BOTTOM or center (for vertical orientation) or left, RIGHT or center (for horizontal orientation). center is default")
 parser.add_argument('--outdir', help="output directory, current working directory by default")
 parser.add_argument('--addwidth', help="add width to input image")
 parser.add_argument('--addheight', help="add height to input image")
 
 args = parser.parse_args()
+
+
+# if we are tiled, the user can specify left, right, bottom, top, and center
+
+
+
 
 
 
@@ -44,6 +50,27 @@ def hadd(img, h):
     img = cv2.vconcat([img,transp])
     return img
 
+def upfit(img, prefW, prefH):
+    height = img.shape[0]
+    width = img.shape[1]
+    if(prefW > width):
+        print("Preferred width overshoots image width, resizing.")
+        __diff = prefW - width
+        img = wadd(img, __diff)
+
+    if(prefH > height):
+        print("Preferred height overshoots image height, resizing.")
+        __diff = prefH - height
+        img = hadd(img, __diff)
+    return img
+
+
+
+
+def show(img):
+    cv2.imshow("asd", img)
+    cv2.waitKey()
+
 
 
 def showAndSave(img, path):
@@ -51,6 +78,8 @@ def showAndSave(img, path):
     cv2.imshow("asd", img)
     cv2.waitKey()
     cv2.imwrite(path, img)
+
+
 
 
 
@@ -123,6 +152,10 @@ def merge(order, orientation, transparent, crop, index):
         if(order=="left"):
             return cv2.hconcat([crop, transparent])
         elif(order=="right"):
+            print(transparent.shape[1])
+            print(transparent.shape[0])
+            print(crop.shape[1])
+            print(crop.shape[0])
             return cv2.hconcat([transparent, crop])
         else:
             if(index==0):
@@ -191,14 +224,14 @@ def bxp(imgw, imgh, tarw, tarh, order, orientation, index):
         return int(tarw)
     elif(orientation=="horizontal"):
         if(order=="left"):
-            return int(width)
+            return int(imgw)
         elif(order=="right"):
-            return int(width%tarw)
+            return int(imgw%tarw)
         else:
             if(index==0):
                 return int(tarw-xdiff)
             else:
-                return int(width)
+                return int(imgw)
 
 
 
@@ -220,7 +253,7 @@ def tyf(imgw, imgh, tarw, tarh, order, orientation, index):
                 return int(Hd2-THd2)
             elif(index%2 == 1):
                 return int(Hd2+(index*THd2))
-            elif(i%2 == 0):
+            elif(index%2 == 0):
                 return int(Hd2-((index+1)*THd2))
     elif(orientation=="horizontal"):
         return int(0)
@@ -238,12 +271,7 @@ def byf(imgw, imgh, tarw, tarh, order, orientation, index):
             #return int(ty+(index+1)*tarh)
             return int(ty+tarh)
         elif(order=="center"):
-            if(index == 0):
-                return int(ty+tarh)
-            elif(index%2 == 1):
-                return int(ty+tarh)
-            elif(i%2 == 0):
-                return int(ty+tarh)
+            return int(ty+tarh)
     elif(orientation=="horizontal"):
         return int(tarh)
 
@@ -263,7 +291,7 @@ def txf(imgw, imgh, tarw, tarh, order, orientation, index):
                 return int(Wd2-TWd2)
             elif(index%2 == 1):
                 return int(Wd2+(index*TWd2))
-            elif(i%2 == 0):
+            elif(index%2 == 0):
                 return int(Wd2-((index+1)*TWd2))
 
 def bxf(imgw, imgh, tarw, tarh, order, orientation, index):
@@ -278,12 +306,7 @@ def bxf(imgw, imgh, tarw, tarh, order, orientation, index):
         elif(order=="right"):
             return int(tx+tarw)
         elif(order=="center"):
-            if(index == 0):
-                return int(tx+tarw)
-            elif(index%2 == 1):
-                return int(tx+tarw)
-            elif(i%2 == 0):
-                return int(tx+tarw)
+            return int(tx+tarw)
 
 
 
@@ -297,13 +320,10 @@ if(not args.outdir):
 
 
 if(not args.orientation):
-    args.orientation="vertical"
+    args.orientation="tiled"
 
 if(not args.start):
-    if(args.orientation == "vertical"):
-       args.start="bottom"
-    else:
-       args.start="right"
+    args.start="center"
 
 if(not args.addwidth):
     args.addwidth = int(0)
@@ -320,24 +340,93 @@ else:
 if(args.orientation == "vertical"):
     assert(args.start != "left")
     assert(args.start != "right")
-else:
+elif(args.orientation == "horizontal"):
     assert(args.start != "top")
     assert(args.start != "bottom")
 
 
-
-tarW = 128
 if(args.width):
-    tarW = int(args.width)
-tarH = 128
+    args.width = int(args.width)
 if(args.height):
-    tarH = int(args.height)
+    args.height = int(args.height)
+
+
+
+def getil(img, width, height, tarw, tarh, order, orientation):
+    imgs = []
+    def addImg(image, index):
+        imgs.append((image, index))
+
+    fulls=imgcf(width, height, tarw, tarh, order, orientation)
+
+    total=imgct(width, height, tarw, tarh, order, orientation)
+    parts = fulls - total
+    partExists = fulls != total
+    print("fulls:" + str(fulls))
+    print("total:" + str(total))
+
+    for i in range(0,fulls):
+        ty, tx, by, bx = 0, 0, 0, 0
+
+        ty = tyf(width, height, tarw, tarh, order, orientation, i)
+        tx = txf(width, height, tarw, tarh, order, orientation, i)
+        by = byf(width, height, tarw, tarh, order, orientation, i)
+        bx = bxf(width, height, tarw, tarh, order, orientation, i)
+
+        oimg=crop(img,ty,tx,by,bx)
+        addImg(oimg, i)
+
+
+
+    if(partExists):
+        ydiff=diff(width, height, tarw, tarh, order, orientation)
+        if(order=="center"):
+            ty0 = typ(width, height, tarw, tarh, order, orientation, 0)
+            tx0 = txp(width, height, tarw, tarh, order, orientation, 0)
+            by0 = byp(width, height, tarw, tarh, order, orientation, 0)
+            bx0 = bxp(width, height, tarw, tarh, order, orientation, 0)
+
+            cropped=crop(img, ty0, tx0, by0, bx0)
+            transparent = gent(width, height, tarw, tarh, order, orientation)
+
+            out = merge(order, orientation, transparent, cropped, 0)
+            addImg(out, fulls)
+
+
+            ty1 = typ(width, height, tarw, tarh, order, orientation, 1)
+            tx1 = txp(width, height, tarw, tarh, order, orientation, 1)
+            by1 = byp(width, height, tarw, tarh, order, orientation, 1)
+            bx1 = bxp(width, height, tarw, tarh, order, orientation, 1)
+
+            cropped=crop(img, ty1, tx1, by1, bx1)
+            transparent = gent(width, height, tarw, tarh, order, orientation)
+
+            out = merge(order, orientation, transparent, cropped, 1)
+            addImg(out, fulls+1)
+
+
+        else:
+            ty = typ(width, height, tarw, tarh, order, orientation, 0)
+            tx = txp(width, height, tarw, tarh, order, orientation, 0)
+            by = byp(width, height, tarw, tarh, order, orientation, 0)
+            bx = bxp(width, height, tarw, tarh, order, orientation, 0)
+
+            cropped=crop(img, ty, tx, by, bx)
+            transparent = gent(width, height, tarw, tarh, order, orientation)
+
+            out = merge(order, orientation, transparent, cropped, 0)
+            addImg(out, fulls)
+
+    return imgs
+
 
 
 img = cv2.imread(abspath, cv2.IMREAD_UNCHANGED)
 if(img is not None):
     height=img.shape[0]
     width=img.shape[1]
+    print(width)
+
 
     if(args.addwidth > 0):
         print("Adding width to input image")
@@ -350,99 +439,97 @@ if(img is not None):
     width=img.shape[1]
 
 
+    if(args.orientation == "vertical" or args.orientation == "horizontal"):
+        
+        tarW = 0
+        tarH = 0
 
-    if(args.orientation == "vertical"):
+        if(args.orientation == "vertical"):
+            #if no width specified, take whole image width
+            if(not args.width):
+                tarW = width
+            else:
+                tarW = args.width
+            #if no height specified, do 128
+            if(not args.height):
+                tarH = 128
+            else:
+                tarH = args.height
+        else:
+            #if no width specified, do 128
+            if(not args.width):
+                tarW = 128
+            else:
+                tarW = args.width
+            #if no hight specified, do whole image height
+            if(not args.height):
+                tarH = height
+            else:
+                tarH = args.height
+
+        #if one tile alone overshoots the image's dimensions, upscale it
+        img = upfit(img, tarW, tarH)
+        height = img.shape[0]
+        width = img.shape[1]
+
+        imgs = getil(img, width, height, tarW, tarH, args.start, args.orientation)
+        for img in imgs:
+            imgData=img[0]
+            index=img[1]
+            fpath = args.outdir + "/" + args.prefix + "_" + str(index) + ".png"
+            showAndSave(imgData, fpath)
+    elif(args.orientation == "tiled"):
+        tarW = 0
+        tarH = 0
+
+        #we do verticals first, with full image width and (args.height or 128)
+        #but for the sake of preprocessing, we recognize user specified image width,
+            #just in case one tile overshoots the whole image
         if(not args.width):
             tarW = width
-
-        if(tarW > width):
-            print("Preferred width overshoots image width, resizing.")
-            __diff = tarW - width
-            img = wadd(img, __diff)
-            height = img.shape[0]
-            width = img.shape[1]
-    elif(args.orientation == "horizontal"):
+        else:
+            tarW = args.width
         if(not args.height):
-            tarH = height
+            tarH = 128
+        else:
+            tarH = args.height
 
-        if(tarH > height):
-            print("Preferred height overshoots image height, resizing.")
-            __diff = tarH - height
-            img = hadd(img, __diff)
-            height = img.shape[0]
-            width = img.shape[1]
+        #if one vertical already overshoots the whole image, we upscale
+        img = upfit(img, tarW, tarH)
+        height = img.shape[0]
+        width = img.shape[1]
+
+
+        order = "center"
+        #we stick the whole image's width in there, and respect tarH
+        vertImgs = getil(img, width, height, width, tarH, order, "vertical")
+
+        #at this point, we have good verticals.
+        #but right now, tarW is very wrong. it should be 128, or args.width.
+        if(not args.width):
+            tarW = 128
+        else:
+            tarW = args.width
+
+        #tarH is correct, and we shouldn't need to upscale
+
+        for vi in vertImgs:
+            viimg = vi[0]
+            viw = viimg.shape[1]
+            vih = viimg.shape[0]
+            #for every vertical, we want to cut tarH's out of there
+            horImgs = getil(viimg, viw, vih, tarW, tarH, order, "horizontal")
+            for hi in horImgs:
+                row = vi[1]
+                col = hi[1]
+                imgData = hi[0]
+                fpath = args.outdir + "/" + args.prefix + "_" + str(row) + "_" + str(col) + ".png"
+                showAndSave(imgData, fpath)
+
+
+
 
     
-
-
-
-    fulls=imgcf(width, height, tarW, tarH, args.start, args.orientation)
-
-    total=imgct(width, height, tarW, tarH, args.start, args.orientation)
-    parts = fulls - total
-    partExists = fulls != total
-    print("fulls:" + str(fulls))
-    print("total:" + str(total))
-
-    for i in range(0,fulls):
-        ty, tx, by, bx = 0, 0, 0, 0
-
-        ty = tyf(width, height, tarW, tarH, args.start, args.orientation, i)
-        tx = txf(width, height, tarW, tarH, args.start, args.orientation, i)
-        by = byf(width, height, tarW, tarH, args.start, args.orientation, i)
-        bx = bxf(width, height, tarW, tarH, args.start, args.orientation, i)
-
-        iname = args.prefix + "_" + str(i) + ".png"
-        oimg=crop(img,ty,tx,by,bx)
-        fpath=args.outdir + "/" + iname
-        showAndSave(oimg, fpath)
-
-
-    if(partExists):
-        ydiff=diff(width, height, tarW, tarH, args.start, args.orientation)
-        if(args.start=="center"):
-            ty0 = typ(width, height, tarW, tarH, args.start, args.orientation, 0)
-            tx0 = txp(width, height, tarW, tarH, args.start, args.orientation, 0)
-            by0 = byp(width, height, tarW, tarH, args.start, args.orientation, 0)
-            bx0 = bxp(width, height, tarW, tarH, args.start, args.orientation, 0)
-
-            cropped=crop(img, ty0, tx0, by0, bx0)
-            transparent = gent(width, height, tarW, tarH, args.start, args.orientation)
-
-            out = merge(args.start, args.orientation, transparent, cropped, 0)
-            iname = args.prefix + "_" + str(fulls) + ".png"
-            fpath=args.outdir + "/" + iname
-            showAndSave(out, fpath)
-
-
-            ty1 = typ(width, height, tarW, tarH, args.start, args.orientation, 1)
-            tx1 = txp(width, height, tarW, tarH, args.start, args.orientation, 1)
-            by1 = byp(width, height, tarW, tarH, args.start, args.orientation, 1)
-            bx1 = bxp(width, height, tarW, tarH, args.start, args.orientation, 1)
-
-            cropped=crop(img, ty1, tx1, by1, bx1)
-            transparent = gent(width, height, tarW, tarH, args.start, args.orientation)
-
-            out = merge(args.start, args.orientation, transparent, cropped, 1)
-            iname = args.prefix + "_" + str(fulls+1) + ".png"
-            fpath=args.outdir + "/" + iname
-            showAndSave(out, fpath)
-
-
-        else:
-            ty = typ(width, height, tarW, tarH, args.start, args.orientation, 0)
-            tx = txp(width, height, tarW, tarH, args.start, args.orientation, 0)
-            by = byp(width, height, tarW, tarH, args.start, args.orientation, 0)
-            bx = bxp(width, height, tarW, tarH, args.start, args.orientation, 0)
-
-            cropped=crop(img, ty, tx, by, bx)
-            transparent = gent(width, height, tarW, tarH, args.start, args.orientation)
-
-            out = merge(args.start, args.orientation, transparent, cropped, 0)
-            iname = args.prefix + "_" + str(fulls) + ".png"
-            fpath=args.outdir + "/" + iname
-            showAndSave(out, fpath)
-
 
 else:
     print("not valid image")
