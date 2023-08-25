@@ -17,8 +17,32 @@ parser.add_argument('--height',  help="output img height. default is 128 if orie
 parser.add_argument('--width', help="output img width. default is 128 if orientation is horizontal, or full image hight if vertical.")
 parser.add_argument('--start', choices=["top", "bottom", "center", "left", "right"], help="start from top, BOTTOM or center (for vertical orientation) or left, RIGHT or center (for horizontal orientation)")
 parser.add_argument('--outdir', help="output directory, current working directory by default")
+parser.add_argument('--addwidth', help="add width to input image")
+parser.add_argument('--addheight', help="add height to input image")
 
 args = parser.parse_args()
+
+
+
+def wadd(img, w):
+    if(w%2 != 0):
+        print("added width is not divisable by two, adding one to it")
+    w = w + 1
+
+    transp = np.zeros((int(img.shape[0]), int(w/2), 4), dtype=np.uint8)
+    img = cv2.hconcat([transp,img])
+    img = cv2.hconcat([img,transp])
+    return img
+
+def hadd(img, h):
+    if(h%2 != 0):
+        print("added height is not divisable by two, adding one to it")
+    h = h + 1
+
+    transp = np.zeros((int(h/2), img.shape[1], 4), dtype=np.uint8)
+    img = cv2.vconcat([transp,img])
+    img = cv2.vconcat([img,transp])
+    return img
 
 
 
@@ -281,6 +305,17 @@ if(not args.start):
     else:
        args.start="right"
 
+if(not args.addwidth):
+    args.addwidth = int(0)
+else:
+    args.addwidth = int(args.addwidth)
+
+
+if(not args.addheight):
+    args.addheight = int(0)
+else:
+    args.addheight = int(args.addheight)
+
 
 if(args.orientation == "vertical"):
     assert(args.start != "left")
@@ -303,6 +338,19 @@ img = cv2.imread(abspath, cv2.IMREAD_UNCHANGED)
 if(img is not None):
     height=img.shape[0]
     width=img.shape[1]
+
+    if(args.addwidth > 0):
+        print("Adding width to input image")
+        img = wadd(img, args.addwidth)
+    if(args.addheight > 0):
+        print("Adding height to input image")
+        img = hadd(img, args.addheight)
+
+    height=img.shape[0]
+    width=img.shape[1]
+
+
+
     if(args.orientation == "vertical"):
         if(not args.width):
             tarW = width
@@ -310,13 +358,7 @@ if(img is not None):
         if(tarW > width):
             print("Preferred width overshoots image width, resizing.")
             __diff = tarW - width
-            if(__diff%2 != 0):
-                print("Overshot is not divisable by two, adding one to it")
-            __diff = __diff + 1
-
-            transp = np.zeros((int(height), int(__diff/2), 4), dtype=np.uint8)
-            img = cv2.hconcat([transp,img])
-            img = cv2.hconcat([img,transp])
+            img = wadd(img, __diff)
             height = img.shape[0]
             width = img.shape[1]
     elif(args.orientation == "horizontal"):
@@ -326,14 +368,7 @@ if(img is not None):
         if(tarH > height):
             print("Preferred height overshoots image height, resizing.")
             __diff = tarH - height
-            if(__diff%2 != 0):
-                print("Overshot is not divisable by two, adding one to it")
-            __diff = __diff + 1
-
-
-            transp = np.zeros((int(__diff/2), width, 4), dtype=np.uint8)
-            img = cv2.vconcat([transp,img])
-            img = cv2.vconcat([img,transp])
+            img = hadd(img, __diff)
             height = img.shape[0]
             width = img.shape[1]
 
