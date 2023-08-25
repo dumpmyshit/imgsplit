@@ -4,7 +4,10 @@ Split png image vertically or horizontally into fixed size sub-images, adding tr
 Currently requires a unix environment with python3.9, python-opencv2 and numpy installed.
 
 ```
-usage: imgsplit [-h] [--orientation {vertical,horizontal}] [--height HEIGHT] [--width WIDTH] [--start {top,bottom,center,left,right}] [--outdir OUTDIR] fname prefix
+usage: imgsplit [-h] [--orientation {vertical,horizontal}] [--height HEIGHT] [--width WIDTH]
+                [--start {top,bottom,center,left,right}] [--outdir OUTDIR] [--addwidth ADDWIDTH]
+                [--addheight ADDHEIGHT]
+                fname prefix
 
 Split a .png image vertically or horizontally, fitting last pieces.
 
@@ -16,11 +19,17 @@ optional arguments:
   -h, --help            show this help message and exit
   --orientation {vertical,horizontal}
                         split orientation
-  --height HEIGHT       output img height. default is 128 if orientation is vertical, or full image height if horizontal.
-  --width WIDTH         output img width. default is 128 if orientation is horizontal, or full image hight if vertical.
+  --height HEIGHT       output img height. default is 128 if orientation is vertical, or full image
+                        height if horizontal.
+  --width WIDTH         output img width. default is 128 if orientation is horizontal, or full image
+                        hight if vertical.
   --start {top,bottom,center,left,right}
-                        start from top, BOTTOM or center (for vertical orientation) or LEFT, right or center (for horizontal orientation)
+                        start from top, BOTTOM or center (for vertical orientation) or left, RIGHT or
+                        center (for horizontal orientation)
   --outdir OUTDIR       output directory, current working directory by default
+  --addwidth ADDWIDTH   add width to input image
+  --addheight ADDHEIGHT
+                        add height to input image
 
 ```
 
